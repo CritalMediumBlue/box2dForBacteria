@@ -22,65 +22,57 @@
 
 #include "test.h"
 
+static void createWall(b2Body* ground, float x1, float y1, float x2, float y2) {
+	b2EdgeShape shape;
+	shape.SetTwoSided(b2Vec2(x1, y1), b2Vec2(x2, y2));
+	ground->CreateFixture(&shape, 0.0f);
+}
+
+static void createBacterium(b2World* world, b2Vec2 position, float rectangleWidth, float rectangleHeight, float circleRadius) {
+	// Define the rectangle shape
+	b2PolygonShape rectangleShape;
+	rectangleShape.SetAsBox(rectangleWidth / 2.0f, rectangleHeight / 2.0f);
+
+	// Define the circle shape
+	b2CircleShape circleShape;
+	circleShape.m_radius = circleRadius;
+
+	// Define the body
+	b2BodyDef bd;
+	bd.type = b2_dynamicBody;
+	bd.position = position;
+	b2Body* body = world->CreateBody(&bd);
+
+	// Attach the rectangle fixture
+	body->CreateFixture(&rectangleShape, 0.001f);
+
+	// Attach the circle fixtures at the ends of the rectangle
+	circleShape.m_p.Set(0, rectangleHeight / 2.0f); // top circle
+	body->CreateFixture(&circleShape, 0.001f);
+	circleShape.m_p.Set(0, -rectangleHeight / 2.0f); // bottom circle
+	body->CreateFixture(&circleShape, 0.001f);
+}
+
 class Pyramid : public Test
 {
 public:
-	enum
-	{
-		e_count = 20
-	};
-
 	Pyramid()
 	{
-		{
-			b2BodyDef bd;
-			b2Body* ground = m_world->CreateBody(&bd);
+		// Create ground and walls
+		b2BodyDef bd;
+		b2Body* ground = m_world->CreateBody(&bd);
+		createWall(ground, -50.0f, 0.0f, 50.0f, 0.0f);
+		createWall(ground, -50.0f, 0.0f, -50.0f, 60.0f);
+		createWall(ground, 50.0f, 0.0f, 50.0f, 60.0f);
 
-			b2EdgeShape shape;
-			shape.SetTwoSided(b2Vec2(-40.0f, 0.0f), b2Vec2(40.0f, 0.0f));
-			ground->CreateFixture(&shape, 0.0f);
-		}
-
-		{
-			float a = 0.5f;
-			b2PolygonShape shape;
-			shape.SetAsBox(a, a);
-
-			b2Vec2 x(-7.0f, 0.75f);
-			b2Vec2 y;
-			b2Vec2 deltaX(0.5625f, 1.25f);
-			b2Vec2 deltaY(1.125f, 0.0f);
-
-			for (int32 i = 0; i < e_count; ++i)
-			{
-				y = x;
-
-				for (int32 j = i; j < e_count; ++j)
-				{
-					b2BodyDef bd;
-					bd.type = b2_dynamicBody;
-					bd.position = y;
-					b2Body* body = m_world->CreateBody(&bd);
-					body->CreateFixture(&shape, 5.0f);
-
-					y += deltaY;
-				}
-
-				x += deltaX;
-			}
-		}
+		// Create bacterium
+		b2Vec2 position(0.0f, 1.0f);
+		createBacterium(m_world, position, 1.0f, 4.0f, 0.5f);
 	}
 
 	void Step(Settings& settings) override
 	{
 		Test::Step(settings);
-
-		//b2DynamicTree* tree = &m_world->m_contactManager.m_broadPhase.m_tree;
-
-		//if (m_stepCount == 400)
-		//{
-		//	tree->RebuildBottomUp();
-		//}
 	}
 
 	static Test* Create()
@@ -89,4 +81,5 @@ public:
 	}
 };
 
+// Register the Pyramid test
 static int testIndex = RegisterTest("Stacking", "Pyramid", Pyramid::Create);
