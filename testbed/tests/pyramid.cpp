@@ -19,8 +19,12 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
+#include <fstream> // Include this for file I/O
+#include <random> // Include this for random number generation
 #include "test.h"
+#include <iostream>
+#include <filesystem> // Include this for file system operations
+
 
 static void createWall(b2Body* ground, float x1, float y1, float x2, float y2) {
 	b2EdgeShape shape;
@@ -44,20 +48,39 @@ static void createBacterium(b2World* world, b2Vec2 position, float rectangleWidt
 	b2Body* body = world->CreateBody(&bd);
 
 	// Attach the rectangle fixture
-	body->CreateFixture(&rectangleShape, 0.001f);
+	body->CreateFixture(&rectangleShape, 0.0001f);
 
 	// Attach the circle fixtures at the ends of the rectangle
 	circleShape.m_p.Set(0, rectangleHeight / 2.0f); // top circle
-	body->CreateFixture(&circleShape, 0.001f);
+	body->CreateFixture(&circleShape, 0.0001f);
 	circleShape.m_p.Set(0, -rectangleHeight / 2.0f); // bottom circle
-	body->CreateFixture(&circleShape, 0.001f);
+	body->CreateFixture(&circleShape, 0.0001f);
 }
 
 class Pyramid : public Test
 {
 public:
+	std::default_random_engine generator; // Random number generator
+    std::uniform_real_distribution<float> distribution{-1.1f, 1.1f}; // Uniform distribution between -10.0 and 10.0
+    std::ofstream outputFile; // Output file stream
+    std::filesystem::path outputPath; // Path to the output file
+
 	Pyramid()
 	{
+		// Open the output file
+		outputFile.open("output.txt");
+		if (!outputFile.is_open())
+		{
+			std::cerr << "Failed to open output.txt for writing.\n"; 
+		}
+		if(outputFile.is_open())
+		{
+			std::cout << "Successfully opened output.txt for writing.\n";
+			std::filesystem::path currentPath = std::filesystem::current_path();
+        	currentPath /= "output.txt";
+       		std::cout << "The file is located at: " << currentPath << "\n";
+		}
+
 		// Create ground and walls
 		b2BodyDef bd;
 		b2Body* ground = m_world->CreateBody(&bd);
@@ -69,10 +92,41 @@ public:
 		b2Vec2 position(0.0f, 1.0f);
 		createBacterium(m_world, position, 1.0f, 4.0f, 0.5f);
 	}
+	   ~Pyramid()
+    {
+        // Close the output file
+        outputFile.close();
+
+		if (!outputFile.is_open())
+		{
+			std::cout << "Successfully closed output.txt.\n";
+
+		}	
+		if (outputFile.is_open())
+		{
+			std::cerr << "Failed to close output.txt.\n";
+
+		}
+
+
+    }
 
 	void Step(Settings& settings) override
 	{
 		Test::Step(settings);
+		// Iterate over all bodies in the world
+		for (b2Body* body = m_world->GetBodyList(); body; body = body->GetNext())
+		{
+			// Generate a random velocity
+			b2Vec2 randomVelocity(distribution(generator), distribution(generator));
+			// Set the body's velocity to the random velocity
+			body->SetLinearVelocity(randomVelocity);
+			// Write the body's position and angle to the output file
+            b2Vec2 position = body->GetPosition();
+            float angle = body->GetAngle();
+            outputFile << "Position: (" << position.x << ", " << position.y << "), Angle: " << angle << "\n";
+       
+		}
 	}
 
 	static Test* Create()

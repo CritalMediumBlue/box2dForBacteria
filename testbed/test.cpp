@@ -19,6 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+#include <fstream> // Include this for file I/O
 
 #include "test.h"
 #include "settings.h"
@@ -39,7 +40,7 @@ void DestructionListener::SayGoodbye(b2Joint* joint)
 Test::Test()
 {
 	b2Vec2 gravity;
-	gravity.Set(0.0f, -10.0f);
+	gravity.Set(0.0f, 0.0f);
 	m_world = new b2World(gravity);
 	m_bomb = NULL;
 	m_textLine = 30;
