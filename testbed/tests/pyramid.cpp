@@ -57,6 +57,12 @@ static void createBacterium(b2World* world, b2Vec2 position, float rectangleWidt
 	body->CreateFixture(&circleShape, 0.0001f);
 }
 
+static void writeBodyDetailsToFile(b2Body* body, float length, std::ofstream& outputFile) {
+    b2Vec2 position = body->GetPosition();
+    float angle = body->GetAngle();
+    outputFile << "Position: (" << position.x << ", " << position.y << "), Angle: " << angle << ", Length: " << length << std::endl;
+}
+
 class Pyramid : public Test
 {
 public:
@@ -69,25 +75,12 @@ public:
 	{
 		// Open the output file
 		outputFile.open("output.txt");
-		if (!outputFile.is_open())
-		{
-			std::cerr << "Failed to open output.txt for writing.\n"; 
-		}
-		if(outputFile.is_open())
-		{
-			std::cout << "Successfully opened output.txt for writing.\n";
-			std::filesystem::path currentPath = std::filesystem::current_path();
-        	currentPath /= "output.txt";
-       		std::cout << "The file is located at: " << currentPath << "\n";
-		}
-
 		// Create ground and walls
 		b2BodyDef bd;
 		b2Body* ground = m_world->CreateBody(&bd);
 		createWall(ground, -50.0f, 0.0f, 50.0f, 0.0f);
 		createWall(ground, -50.0f, 0.0f, -50.0f, 60.0f);
 		createWall(ground, 50.0f, 0.0f, 50.0f, 60.0f);
-
 		// Create bacterium
 		b2Vec2 position(0.0f, 1.0f);
 		createBacterium(m_world, position, 1.0f, 4.0f, 0.5f);
@@ -96,19 +89,6 @@ public:
     {
         // Close the output file
         outputFile.close();
-
-		if (!outputFile.is_open())
-		{
-			std::cout << "Successfully closed output.txt.\n";
-
-		}	
-		if (outputFile.is_open())
-		{
-			std::cerr << "Failed to close output.txt.\n";
-
-		}
-
-
     }
 
 	void Step(Settings& settings) override
@@ -117,23 +97,57 @@ public:
 		// Iterate over all bodies in the world
 		for (b2Body* body = m_world->GetBodyList(); body; body = body->GetNext())
 		{
-			// Generate a random velocity
-			b2Vec2 randomVelocity(distribution(generator), distribution(generator));
-			// Set the body's velocity to the random velocity
-			body->SetLinearVelocity(randomVelocity);
-			// Write the body's position and angle to the output file
-            b2Vec2 position = body->GetPosition();
-            float angle = body->GetAngle();
-            outputFile << "Position: (" << position.x << ", " << position.y << "), Angle: " << angle << "\n";
-       
+			if (body->GetType() == b2_dynamicBody) 
+			{
+				std::vector<b2Vec2> circlePositions;
+
+				// Iterate over the fixtures of the body
+				for (b2Fixture* fixture = body->GetFixtureList(); fixture; fixture = fixture->GetNext()) 
+				{
+					b2Shape* shape = fixture->GetShape();
+					if (shape->GetType() == b2Shape::e_polygon)
+					{
+						// If the shape is a polygon (the body of the bacterium), elongate it
+						b2PolygonShape* polygonShape = (b2PolygonShape*)shape;
+						for (int i = 0; i < polygonShape->m_count; i++)
+						{
+							polygonShape->m_vertices[i].y *= 1.001f;
+						}
+					}
+					else if (shape->GetType() == b2Shape::e_circle)
+					{
+						// If the shape is a circle (the ends of the bacterium), store its position
+						b2CircleShape* circleShape = (b2CircleShape*)shape;
+						circleShape->m_p.y *= 1.001f;
+						circlePositions.push_back(circleShape->m_p);
+					}
+				}
+
+				// Calculate the new length of the bacterium
+				b2Vec2 diff = circlePositions[0] - circlePositions[1];
+				float length = diff.Length();
+
+				// Let's check if the bacteria has reached a length of 10.0
+
+				if (length > 10.0f)
+				{
+					// Let's create a new bacterium
+					b2Vec2 position(distribution(generator), 1.0f);
+					createBacterium(m_world, position, 1.0f, 4.0f, 0.5f);
+
+				}
+
+
+				
+				// Write the body's position, angle, and length to the output file
+		        writeBodyDetailsToFile(body, length, outputFile);
+				}
 		}
 	}
-
 	static Test* Create()
 	{
 		return new Pyramid;
 	}
 };
-
 // Register the Pyramid test
 static int testIndex = RegisterTest("Stacking", "Pyramid", Pyramid::Create);
